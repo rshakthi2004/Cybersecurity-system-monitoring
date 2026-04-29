@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Access Granted</title>
+
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --green: #00ff85;
+      --cyan: #00f5ff;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      background: var(--bg);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial;
+    }
+
+    .card {
+      background: rgba(20,25,40,0.7);
+      padding: 40px;
+      border-radius: 15px;
+      text-align: center;
+      border: 1px solid rgba(0,255,255,0.2);
+      box-shadow: 0 0 20px rgba(0,255,255,0.2);
+    }
+
+    .success {
+      color: var(--green);
+      font-size: 28px;
+      text-shadow: 0 0 10px var(--green);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      background: var(--green);
+      border-radius: 50%;
+      display: inline-block;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0.2; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+    <div class="success">
+      ✔ ACCESS GRANTED <span class="dot"></span>
+    </div>
+    <p>Redirecting to dashboard...</p>
+  </div>
+
+  <script>
+    setTimeout(() => {
+      window.location.href = "/dashboard";
+    }, 4000);
+  </script>
+
+</body>
+</html>

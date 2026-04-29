@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Access Denied</title>
+
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --red: #ff3b3b;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      background: var(--bg);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial;
+      overflow: hidden;
+    }
+
+    /* Cyber grid */
+    body::before {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(rgba(255,0,0,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,0,0,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: -1;
+    }
+
+    .card {
+      background: rgba(20,25,40,0.7);
+      padding: 40px;
+      border-radius: 15px;
+      text-align: center;
+      border: 1px solid rgba(255,0,0,0.3);
+      box-shadow: 0 0 20px rgba(255,0,0,0.3);
+      animation: shake 0.5s;
+    }
+
+    .denied {
+      color: var(--red);
+      font-size: 30px;
+      text-shadow: 0 0 10px var(--red), 0 0 25px var(--red);
+      margin-bottom: 15px;
+    }
+
+    .warning {
+      color: #ffaaaa;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+   
+    .dot {
+      width: 10px;
+      height: 10px;
+      background: var(--red);
+      border-radius: 50%;
+      display: inline-block;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0.2; }
+    }
+
+    /* shake animation */
+    @keyframes shake {
+      0% { transform: translateX(-5px); }
+      25% { transform: translateX(5px); }
+      50% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+      100% { transform: translateX(0); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+  <div class="denied">
+    ✖ ACCESS DENIED <span class="dot"></span>
+  </div>
+
+  <div class="warning">
+    Unauthorized attempt detected...<br>
+    Returning to login page...
+  </div>
+
+  <div style="margin-top:20px; text-align:left;">
+    <p style="color:#ff3b3b;">[SECURITY] Intrusion detected...</p>
+    <p style="color:#ffaaaa;">[ACTION] Blocking access...</p>
+  </div>
+</div>
+<p id="countdown" style="color:#ffaaaa;"></p>
+
+<script>
+let time = 3;
+let countdown = document.getElementById("countdown");
+
+let interval = setInterval(() => {
+  countdown.innerHTML = "Redirecting in " + time + " seconds...";
+  time--;
+
+  if (time < 0) {
+    clearInterval(interval);
+    window.location.href = "/";
+  }
+},1000);
+</script>
+<script>
+  setTimeout(() => {
+    window.location.href = "/";   
+  }, 4000);
+</script>
+
+</body>
+</html>

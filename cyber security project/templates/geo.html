@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Geo-IP Dashboard</title>
+ 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ 
+    <style>
+        body {
+            margin: 0;
+            background: #050a14;
+            font-family: 'Segoe UI';
+            color: #00ffcc;
+        }
+ 
+        .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 30px;
+            border-bottom: 1px solid #0f2a3a;
+        }
+ 
+        .stats {
+            display: flex;
+            gap: 20px;
+            padding: 20px 30px;
+        }
+ 
+        .card {
+            flex: 1;
+            background: #0d1326;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ffcc;
+        }
+ 
+        .map-container {
+            width: 95%;
+            height: 450px;
+            margin: auto;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #00ffcc;
+        }
+ 
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+ 
+        .bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px 30px;
+        }
+ 
+        .row {
+            display: flex;
+            gap: 20px;
+        }
+ 
+        .box {
+            flex: 1;
+            background: #0d1326;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ffcc;
+        }
+ 
+        #logs {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+ 
+        canvas {
+            max-height: 220px;
+        }
+ 
+        @keyframes flash {
+            0% { background: transparent; }
+            50% { background: rgba(255,0,0,0.3); }
+            100% { background: transparent; }
+        }
+ 
+        .flash {
+            animation: flash 0.5s ease-in-out 3;
+        }
+ 
+        #alertBox {
+            display:none;
+            text-align:center;
+            padding:10px;
+            background:red;
+            color:white;
+            font-weight:bold;
+        }
+    </style>
+</head>
+ 
+<body>
+ 
+<div class="header">
+    <div>🌍 Geo-IP Connections</div>
+    <div onclick="goDashboard()" style="cursor:pointer;background:#00ffcc;color:black;padding:5px 10px;">← Dashboard</div>
+</div>
+ 
+<div id="alertBox">⚠ HIGH THREAT DETECTED!</div>
+ 
+<div class="stats">
+    <div class="card">Total: <span id="count">0</span></div>
+    <div class="card">Countries: <span id="countries">0</span></div>
+    <div class="card">High Risk: <span id="high">0</span></div>
+</div>
+ 
+<div class="map-container">
+    <div id="map"></div>
+</div>
+ 
+<div class="bottom">
+ 
+    <div class="row">
+        <div class="box">
+            <h3>Legend</h3>
+            <p>🟢 Trusted</p>
+            <p>🟡 Unknown</p>
+            <p>🔴 Suspicious</p>
+        </div>
+ 
+        <div class="box">
+            <h3>Logs</h3>
+            <div id="logs"></div>
+        </div>
+    </div>
+ 
+    <div class="row">
+        <div class="box">
+            <h3>Threat Graph</h3>
+            <canvas id="threatChart"></canvas>
+        </div>
+ 
+        <div class="box">
+            <h3>Top Attacking Countries</h3>
+            <canvas id="countryChart"></canvas>
+        </div>
+    </div>
+ 
+</div>
+ 
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+ 
+<script>
+ 
+var map = L.map('map').setView([20,0],2);
+ 
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+ 
+let myLocation = [13.0827, 80.2707];
+ 
+function fetchGeoData() {
+  fetch("/geo-ip")
+    .then(res => res.json())
+    .then(data => {
+      console.log("Geo Data:", data);
+ 
+      data.forEach(item => {
+        console.log(item.ip, item.country);
+      });
+    })
+    .catch(err => console.error("Geo API error:", err));
+}
+ 
+fetchGeoData();
+setInterval(fetchGeoData, 5000);
+ 
+let threatData = [];
+let threatLabels = [];
+ 
+let threatChart = new Chart(document.getElementById('threatChart'), {
+    type: 'line',
+    data: {
+        labels: threatLabels,
+        datasets: [{
+            label: 'Threat Score',
+            data: threatData,
+            borderColor: '#00ffcc',
+            tension: 0.3
+        }]
+    },
+    options: {
+        scales: { y: { min:0, max:100 } }
+    }
+});
+ 
+let countryCounts = {};
+ 
+let countryChart = new Chart(document.getElementById("countryChart"), {
+    type: 'bar',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Connections',
+            data: [],
+            backgroundColor: '#00ffcc'
+        }]
+    },
+    options: {
+        responsive: true,
+        animation: {
+            duration: 600
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+ 
+async function loadGeo(){
+ 
+    document.getElementById("logs").innerHTML = "";
+ 
+    let res = await fetch("/geo-ip");
+    let data = await res.json();
+ 
+    let countries = new Set();
+    let high = 0;
+ 
+    document.getElementById("count").innerText = data.length;
+ 
+    data.forEach(loc => {
+ 
+        countries.add(loc.country);
+ 
+        let score = Math.floor(Math.random()*100);
+        let status = score > 70 ? "BLOCKED" : "ALLOWED";
+        let color = score > 70 ? "red" : "#00ffcc";
+ 
+        if(score > 70) high++;
+ 
+        if(score > 80){
+            let alertBox = document.getElementById("alertBox");
+            alertBox.style.display = "block";
+            document.body.classList.add("flash");
+ 
+            setTimeout(()=>{
+                alertBox.style.display = "none";
+                document.body.classList.remove("flash");
+            },2000);
+        }
+ 
+        countryCounts[loc.country] = (countryCounts[loc.country] || 0) + 1;
+ 
+        L.circleMarker([loc.lat, loc.lon], { color: color }).addTo(map);
+        L.polyline([myLocation, [loc.lat, loc.lon]], { color: color }).addTo(map);
+ 
+        let time = new Date().toLocaleTimeString();
+ 
+        document.getElementById("logs").innerHTML +=
+        `<p style=\"color:${color}\">[${time}] ${loc.ip} → ${loc.country} | Score:${score} | ${status}</p>`;
+ 
+        threatLabels.push(time);
+        threatData.push(score);
+ 
+        if(threatLabels.length > 10){
+            threatLabels.shift();
+            threatData.shift();
+        }
+    });
+ 
+    let sortedCountries = Object.entries(countryCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+ 
+    countryChart.data.labels = sortedCountries.map(x => x[0]);
+    countryChart.data.datasets[0].data = sortedCountries.map(x => x[1]);
+    countryChart.update({
+        duration: 700,
+        easing: 'easeInOutQuart'
+    });
+ 
+    threatChart.update();
+ 
+    document.getElementById("countries").innerText = countries.size;
+    document.getElementById("high").innerText = high;
+}
+ 
+loadGeo();
+ 
+setInterval(()=>{
+    map.eachLayer(layer=>{
+        if(layer instanceof L.CircleMarker || layer instanceof L.Polyline){
+            map.removeLayer(layer);
+        }
+    });
+    loadGeo();
+},5000);
+ 
+function goDashboard(){
+    window.location.href="/dashboard";
+}
+ 
+</script>
+ 
+</body>
+</html>

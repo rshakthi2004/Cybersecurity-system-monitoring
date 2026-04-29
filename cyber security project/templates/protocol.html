@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Protocol Analysis</title>
+ 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ 
+    <style>
+        body {
+            margin: 0;
+            background: #050a14;
+            font-family: 'Segoe UI', sans-serif;
+            color: #e0f7fa;
+        }
+ 
+        h1 {
+            text-align: center;
+            color: #00ffcc;
+        }
+ 
+        .container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            padding: 20px;
+        }
+ 
+        .card {
+            padding: 15px;
+            border-radius: 12px;
+            background: rgba(10, 15, 28, 0.9);
+            border: 1px solid rgba(0,255,204,0.2);
+            box-shadow: 0 0 10px rgba(0,255,204,0.1);
+            display:flex;
+            flex-direction:column;
+        }
+ 
+        .summary {
+            text-align: center;
+        }
+ 
+        .summary h3 {
+            color: #00ffcc;
+        }
+ 
+        .value {
+            font-size: 22px;
+            color: #00f5ff;
+        }
+ 
+        .full-width {
+            grid-column: span 3;
+        }
+ 
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+ 
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+            text-align: center;
+        }
+ 
+        th {
+            color: #00ffcc;
+        }
+ 
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: #00ff00;
+            border-radius: 50%;
+            display: inline-block;
+            animation: blink 1s infinite;
+        }
+ 
+        @keyframes blink {
+            50% { opacity: 0.3; }
+        }
+        .status-normal {
+    color: #22c55e;
+        }
+ 
+        .status-warning {
+            color: #facc15;
+        }
+ 
+        .status-danger {
+            color: #ef4444;
+        }
+        .chart-container {
+    position: relative;
+    width: 100%;
+    height: 100%;   /* Fill full card */
+}
+.card h3 {
+    margin-bottom: 10px;
+}
+.card canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+ .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 30px;
+            border-bottom: 1px solid #0f2a3a;
+        }
+    </style>
+</head>
+ 
+<body>
+ 
+<h1>🌐 Protocol Analysis <span class="live-dot"></span></h1>
+<div class="header">
+<div onclick="goDashboard()" style="cursor:pointer;background:#00ffcc;color:black;padding:5px 10px;">← Dashboard</div>
+</div>
+<div class="container">
+ 
+    <div class="card summary">
+        <h3>Total Packets</h3>
+        <p id="totalPackets" class="value">0</p>
+    </div>
+ 
+    <div class="card summary">
+        <h3>TCP %</h3>
+        <p id="tcpPercent" class="value">0%</p>
+    </div>
+ 
+    <div class="card summary">
+        <h3>UDP %</h3>
+        <p id="udpPercent" class="value">0%</p>
+    </div>
+ 
+    <div class="card">
+        <h3>Protocol Distribution</h3>
+        <canvas id="pieChart"></canvas>
+    </div>
+ 
+    <div class="card">
+        <h3>Protocol Comparison</h3>
+        <div class="chart-container">
+    <canvas id="barChart"></canvas>
+</div>
+    </div>
+ 
+    <div class="card">
+    <h3>Status <span class="live-dot"></span></h3>
+    <p id="statusText">Initializing...</p>
+    </div>
+ 
+    <div class="card full-width">
+        <h3>Protocol Traffic Timeline</h3>
+        <canvas id="lineChart"></canvas>
+    </div>
+ 
+    <div class="card full-width">
+        <h3>Protocol Logs</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Source</th>
+                    <th>Destination</th>
+                    <th>Protocol</th>
+                    <th>Port</th>
+                </tr>
+            </thead>
+            <tbody id="logTable"></tbody>
+        </table>
+    </div>
+ 
+</div>
+ 
+<script>
+ 
+let pieChart, barChart, lineChart;
+ 
+// INIT CHARTS
+function initCharts() {
+ 
+    pieChart = new Chart(document.getElementById('pieChart'), {
+        type: 'pie',
+        data: {
+            labels: ['TCP', 'UDP', 'HTTP', 'HTTPS'],
+            datasets: [{
+                data: [0,0,0,0]
+            }]
+        }
+    });
+ 
+    barChart = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+        labels: ['TCP', 'UDP', 'HTTP', 'HTTPS'],
+        datasets: [{
+            label: 'Packets',
+            data: [0,0,0,0]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false   // 🔥 KEY LINE
+    }
+});
+ 
+    lineChart = new Chart(document.getElementById('lineChart'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'TCP', data: [], borderColor: '#00ffcc' },
+                { label: 'UDP', data: [], borderColor: '#ffcc00' },
+                { label: 'HTTP', data: [], borderColor: '#3399ff' },
+                { label: 'HTTPS', data: [], borderColor: '#ff4444' }
+            ]
+        },
+        options: { animation: false }
+    });
+}
+ 
+// FETCH DATA
+async function loadProtocolData() {
+    try {
+        const res = await fetch('/protocol-stats');
+        const data = await res.json();
+ 
+        let total = data.TCP + data.UDP + data.HTTP + data.HTTPS;
+        if (total === 0) return;
+ 
+        document.getElementById('totalPackets').innerText = total;
+        document.getElementById('tcpPercent').innerText = ((data.TCP/total)*100).toFixed(1) + "%";
+        document.getElementById('udpPercent').innerText = ((data.UDP/total)*100).toFixed(1) + "%";
+ 
+        pieChart.data.datasets[0].data = [data.TCP, data.UDP, data.HTTP, data.HTTPS];
+        pieChart.update();
+ 
+        barChart.data.datasets[0].data = [data.TCP, data.UDP, data.HTTP, data.HTTPS];
+        barChart.update();
+ 
+        let time = new Date().toLocaleTimeString();
+ 
+        lineChart.data.labels.push(time);
+        lineChart.data.datasets[0].data.push(data.TCP);
+        lineChart.data.datasets[1].data.push(data.UDP);
+        lineChart.data.datasets[2].data.push(data.HTTP);
+        lineChart.data.datasets[3].data.push(data.HTTPS);
+ 
+        if (lineChart.data.labels.length > 15) {
+            lineChart.data.labels.shift();
+            lineChart.data.datasets.forEach(ds => ds.data.shift());
+        }
+ 
+        lineChart.update();
+ 
+        // REALISTIC LOG SIMULATION
+        let protocols = ["TCP", "UDP", "HTTP", "HTTPS"];
+        let randomProtocol = protocols[Math.floor(Math.random() * protocols.length)];
+ 
+        let row = `
+            <tr>
+                <td>${time}</td>
+                <td>192.168.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}</td>
+                <td>8.8.8.8</td>
+                <td>${randomProtocol}</td>
+                <td>${Math.floor(Math.random()*65535)}</td>
+            </tr>
+        `;
+ 
+        let table = document.getElementById("logTable");
+        table.innerHTML = row + table.innerHTML;
+ 
+        // Limit logs
+        if (table.rows.length > 20) {
+            table.deleteRow(20);
+        }
+        let statusText = "Normal Traffic";
+ 
+        let statusEl = document.getElementById("statusText");
+ 
+        if (data.TCP > 150) {
+            statusEl.innerText = "🚨 Possible SYN Flood Attack";
+            statusEl.className = "status-danger";
+        } else if (data.UDP > 80) {
+            statusEl.innerText = "⚠️ Unusual UDP Traffic";
+            statusEl.className = "status-warning";
+        } else {
+            statusEl.innerText = "✅ Network Normal";
+            statusEl.className = "status-normal";
+        }
+ 
+document.getElementById("statusText").innerText = statusText;
+ 
+    } catch (error) {
+        console.error("Error fetching protocol data:", error);
+    }
+}
+ 
+// INIT
+initCharts();
+setInterval(loadProtocolData, 1000);
+ 
+</script>
+ 
+</body>
+</html>

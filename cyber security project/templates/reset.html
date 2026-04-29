@@ -1,0 +1,131 @@
+<html>
+<head>
+    <style>
+       
+    /* GLOBAL STYLES */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      color: rgb(0, 0, 0);
+      text-align: center;
+      /* background-color: #0f172a; */
+    }
+ 
+    /* BACKGROUND */
+    .auth-bg {
+      background: url("/static/Image2.jpg");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+ 
+      height: 100vh;
+      overflow: hidden;
+      margin: 0;
+ 
+      filter: brightness(1.01) contrast(1.05);
+    }
+ 
+    /* OVERLAY */
+    .auth-bg::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+ 
+    /* LOGIN BOX */
+    .box {
+      margin: 180px 500px 0 auto;
+      width: 320px;
+      text-align: center;
+      background: none;
+      box-shadow: none;
+      border: none;
+    }
+ 
+    /* HEADING */
+    .box h2 {
+      margin-bottom: 30px;
+    }
+ 
+    /* INPUT */
+    input {
+      width: 90%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+      font-size: 14px;
+    }
+ 
+    /* BUTTON */
+    button {
+      width: 70%;
+      padding: 12px;
+      margin-top: 10px;
+      background: #22c55e;
+      border: none;
+      border-radius: 6px;
+      color: rgb(31, 29, 29);
+      font-size: 15px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+ 
+    button:hover {
+      background: #16a34a;
+      transform: scale(1.03);
+    }
+ 
+    /* LINKS */
+    p {
+      margin-top: 12px;
+      cursor: pointer;
+      color: #051014;
+      font-size: 14px;
+      transition: 0.3s;
+    }
+ 
+    p:hover {
+      color: #000000;
+      text-decoration: underline;
+    }
+  </style>
+ 
+ 
+</head>
+ <body class="auth-bg">
+<input type="password" id="password" placeholder="New Password">
+<button onclick="resetPassword()">Reset Password</button>
+ 
+<script>
+async function resetPassword() {
+  let password = document.getElementById("password").value;
+ 
+  let token = window.location.pathname.split("/").pop();
+ 
+  let res = await fetch(`/reset-password/${token}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ password })
+  });
+ 
+  let data = await res.json();
+  alert(data.message);
+ 
+  if (res.ok) {
+    window.location.href = "/";
+  }
+}
+</script>
+ </body>
+ 
+</html>
+ 

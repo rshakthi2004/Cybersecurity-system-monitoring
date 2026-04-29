@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ 
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-gauge"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+ 
+   
+</head>
+ 
+ 
+<body class="auth-bg">
+ 
+<div class="dashboard">
+ 
+  <h1>Cyber Security Dashboard</h1>
+ 
+  <!-- STATS -->
+  <div class="stats">
+    <div class="box stat-box">
+      <h3>CPU Usage</h3>
+      <p id="cpu">0%</p>
+    </div>
+ 
+    <div class="box stat-box">
+      <h3>Memory Usage</h3>
+      <p id="memory">0%</p>
+    </div>
+  </div>
+ 
+ </div>
+  <!-- <div class="box chart-box"> -->
+    <h3 class="resource-title">System Resource Utilization</h3>
+    <div class="chart-wrapper">
+  <div class="chart-container">
+    <canvas id="chart"></canvas>
+  </div>
+</div>
+  <!-- </div> -->
+ 
+</div>
+  <!-- GRID -->
+   <div class="grid">
+ 
+  <!-- ROW 1 -->
+  <div class="box">
+    <h3>Alerts</h3>
+    <ul id="alerts"></ul>
+  </div>
+ 
+  <div class="box">
+    <h3>Processes</h3>
+    <input type="text" id="searchProcess" placeholder="Search process..." onkeyup="filterProcesses()">
+    <ul id="processes"></ul>
+  </div>
+ 
+  <div class="box">
+    <h3>Port Scanner</h3>
+    <button onclick="scanPorts()">Scan Ports</button>
+    <ul id="ports"></ul>
+  </div>
+ 
+  <!-- ROW 2 -->
+   
+  <div class="box">
+  <div class="card" onclick="goToGeo()">
+      <h3>🌍 Geo-IP Threat Map</h3>
+      
+        <small>Click to view detailed chart →</small>
+  </div>
+  </div>
+ 
+ 
+  <div class="box">
+  <div class="card" onclick="goToProtocol()">
+      <h3>🌐 Protocol Distribution</h3>
+     
+      
+      <small>Click to view detailed chart →</small>
+  </div>
+  </div>
+ 
+  <!-- Empty third column to maintain alignment -->
+   
+  <div class="box">
+    <div class="card" onclick="goToIP()">
+    <h3>🚨 Top Attacker IPs</h3>
+    <ul id="attackerList"></ul>
+    <small>Click to view detailed chart →</small>
+</div>
+</div>
+ 
+</div>
+ 
+<h1 style="text-align:center">Live Network Connections</h1>
+ 
+<div style="text-align:center; margin-bottom:20px;">
+    <button onclick="startMonitoring()" style="
+        padding:10px 20px;
+        background:#22c55e;
+        border:none;
+        color:white;
+        font-size:16px;
+        cursor:pointer;
+        border-radius:5px;
+    ">
+        Start Live Monitoring
+    </button>
+ 
+    <button onclick="stopMonitoring()" style="
+        padding:10px 20px;
+        background:#ef4444;
+        border:none;
+        color:white;
+        font-size:16px;
+        cursor:pointer;
+        border-radius:5px;
+        margin-left:10px;
+    ">
+        Stop Monitoring
+    </button>
+</div>
+ 
+<table>
+    <thead>
+        <tr>
+            <th>Local Address</th>
+            <th>Remote Address</th>
+            <th>Status</th>
+            <th>PID</th>
+            <th>Process</th>
+        </tr>
+    </thead>
+    <tbody id="data"></tbody>
+</table>
+<h3 class="chart-title">Threat Traffic Analyzer</h3>
+<div class="chart-wrapper">
+  <div class="chart-container">
+    <canvas id="networkChart"></canvas>
+  </div>
+</div>
+</div>
+<script>
+ 
+let ctxNet = document.getElementById('networkChart').getContext('2d');
+ 
+let networkChart = new Chart(ctxNet, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      {
+        label: 'Upload (KB/s)',
+        data: [],
+        borderColor: '#00ff85',
+        backgroundColor: 'rgba(0,255,133,0.1)',
+        borderWidth: 2,
+        tension: 0.3
+      },
+      {
+        label: 'Download (KB/s)',
+        data: [],
+        borderColor: '#00f5ff',
+        backgroundColor: 'rgba(0,245,255,0.1)',
+        borderWidth: 2,
+        tension: 0.3
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    animation: false,
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
+  }
+});
+ 
+let lastSent = 0;
+let lastRecv = 0;
+ 
+ 
+setInterval(async () => {
+  try {
+    let response = await fetch('/network-usage');
+    let data = await response.json();
+ 
+    let time = new Date().toLocaleTimeString();
+ 
+    // Calculate speed (difference)
+    let upload = (data.sent - lastSent) / 1024;
+    let download = (data.recv - lastRecv) / 1024;
+ 
+    lastSent = data.sent;
+    lastRecv = data.recv;
+ 
+    networkChart.data.labels.push(time);
+    networkChart.data.datasets[0].data.push(upload.toFixed(2));
+    networkChart.data.datasets[1].data.push(download.toFixed(2));
+ 
+    // Keep last 10 points
+    if (networkChart.data.labels.length > 10) {
+      networkChart.data.labels.shift();
+      networkChart.data.datasets.forEach(ds => ds.data.shift());
+    }
+ 
+    networkChart.update();
+ 
+  } catch (error) {
+    console.error("Network fetch error:", error);
+  }
+}, 2000);
+ 
+ 
+let intervalId = null;   // store timer
+ 
+async function loadConnections() {
+    const res = await fetch('/api/connections');
+    const data = await res.json();
+ 
+    let rows = "";
+ 
+    data.forEach(conn => {
+        let statusClass = conn.status === "ESTABLISHED" ? "danger" : "safe";
+ 
+        rows += `
+        <tr>
+            <td>${conn.local_address}</td>
+            <td>${conn.remote_address}</td>
+            <td class="${statusClass}">${conn.status}</td>
+            <td>${conn.pid || "-"}</td>
+            <td>${conn.process}</td>
+        </tr>
+        `;
+    });
+ 
+    document.getElementById("data").innerHTML = rows;
+}
+// START BUTTON
+function startMonitoring() {
+    if (intervalId) return; // already running
+ 
+    loadConnections(); // load immediately
+ 
+    intervalId = setInterval(loadConnections, 3000);
+ 
+    console.log("Monitoring started");
+}
+ 
+// STOP BUTTON
+
+function stopMonitoring() {
+    clearInterval(intervalId);
+    intervalId = null;
+ 
+    console.log("Monitoring stopped");
+}
+ 
+</script>
+ 
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>
+  loadDashboard();
+</script>
+ 
+<!-- Geo IP -->
+ 
+<div class="box news-card">
+  <div class="news-header">
+    <h2>📰 Cyber Security News</h2>
+    <span class="live">🔴 LIVE</span>
+  </div>
+ 
+  <div id="news-container" class="news-scroll"></div>
+</div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
